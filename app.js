@@ -48,7 +48,6 @@
 
             const response = await fetch(CONFIG.POWER_AUTOMATE_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
