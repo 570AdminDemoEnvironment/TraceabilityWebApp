@@ -252,10 +252,11 @@
         });
 
         // Current state
+        const loc = asset.location || { name: 'Unknown', country: '' };
         chain.push({
             icon: asset.status.icon,
             action: `Current: ${asset.status.label}`,
-            who: `${asset.location.name}, ${asset.location.country}`,
+            who: `${loc.name}, ${loc.country}`,
             date: 'Now'
         });
 
@@ -454,8 +455,8 @@
                 a.serialNumber.toLowerCase().includes(s) ||
                 a.partNumber.toLowerCase().includes(s) ||
                 a.description.toLowerCase().includes(s) ||
-                (a.assignedAirline && a.assignedAirline.name.toLowerCase().includes(s)) ||
-                a.location.name.toLowerCase().includes(s)
+                (resolveAirline(a.assignedAirline)).toLowerCase().includes(s) ||
+                (a.location && a.location.name || '').toLowerCase().includes(s)
             );
         }
 
@@ -466,17 +467,17 @@
         container.innerHTML = filtered.map(asset => {
             const lifePercent = asset.certifiedLife > 0 ? (asset.currentLandings / asset.certifiedLife) * 100 : 0;
             const lifeClass = lifePercent > 85 ? 'critical' : lifePercent > 65 ? 'caution' : 'healthy';
-            const airline = asset.assignedAirline ? asset.assignedAirline.name : '—';
+            const airline = resolveAirline(asset.assignedAirline);
             const remaining = asset.certifiedLife - asset.currentLandings;
 
             return `
-                <tr onclick="app.openDetail('${asset.id}')">
-                    <td><strong>${asset.serialNumber}</strong></td>
-                    <td class="text-muted">${asset.partNumber}</td>
-                    <td>${asset.type.label}</td>
-                    <td><span class="status-badge ${asset.status.id}">${asset.status.icon} ${asset.status.label}</span></td>
+                <tr onclick="app.openDetail('${asset.id}')" style="cursor:pointer;">
+                    <td><strong>${asset.serialNumber || '—'}</strong></td>
+                    <td class="text-muted">${asset.partNumber || '—'}</td>
+                    <td>${asset.type ? asset.type.label : '—'}</td>
+                    <td><span class="status-badge ${asset.status ? asset.status.id : ''}">${asset.status ? asset.status.icon + ' ' + asset.status.label : '—'}</span></td>
                     <td>${airline}</td>
-                    <td>${asset.location.name}</td>
+                    <td>${asset.location ? asset.location.name : '—'}</td>
                     <td>
                         <div class="life-bar"><div class="life-bar-fill ${lifeClass}" style="width: ${lifePercent}%"></div></div>
                         <span class="text-sm text-muted">${remaining} left</span>
@@ -540,14 +541,16 @@
     // === ASSET DETAIL ===
     function openDetail(assetId) {
         selectedAsset = getAssets().find(a => a.id === assetId);
-        if (!selectedAsset) return;
+        if (!selectedAsset) { console.error('Asset not found:', assetId); return; }
         switchView('detail');
     }
 
     function renderDetail() {
         if (!selectedAsset) return;
+        try {
         const a = selectedAsset;
         const container = document.getElementById('detail-content');
+        const loc = a.location || { name: 'Unknown', country: '', lat: 0, lng: 0 };
         const lifePercent = a.certifiedLife > 0 ? (a.currentLandings / a.certifiedLife) * 100 : 0;
         const lifeClass = lifePercent > 85 ? 'critical' : lifePercent > 65 ? 'caution' : 'healthy';
         const airline = resolveAirline(a.assignedAirline);
@@ -613,7 +616,7 @@
                 </div>
                 <div class="detail-stat">
                     <div class="label">Current Location</div>
-                    <div class="value">📍 ${a.location.name}, ${a.location.country}</div>
+                    <div class="value">📍 ${loc.name}, ${loc.country}</div>
                 </div>
                 <div class="detail-stat">
                     <div class="label">Assigned Airline</div>
@@ -679,6 +682,10 @@
                 </div>
             </div>
         `;
+        } catch (err) {
+            console.error('renderDetail error:', err);
+            container.innerHTML = `<div style="padding:20px;color:#EF4444;">Error rendering detail: ${err.message}</div>`;
+        }
     }
 
     // === EXCHANGE FLOW ===
