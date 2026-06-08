@@ -1041,8 +1041,7 @@
         closePrompt,
         handleSearch,
         handleFilter,
-        toggleAgent,
-        setPromptMode
+        toggleAgent
     };
 
 })();
