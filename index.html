@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TP Aerospace — Circular Asset Traceability</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* Leaflet popup override for dark theme */
+        .leaflet-popup-content-wrapper {
+            background: #1A2736;
+            color: #F1F5F9;
+            border-radius: 10px;
+            border: 1px solid #2A3A4A;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .leaflet-popup-tip { background: #1A2736; }
+        .leaflet-popup-content { font-size: 13px; line-height: 1.6; }
+        .leaflet-popup-content a { color: #00A651; text-decoration: none; font-weight: 600; }
+        .leaflet-popup-content a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">TP</div>
+                <div>
+                    <h1>TP Aerospace</h1>
+                    <span>Asset Traceability</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item" data-view="dashboard">
+                    <span class="icon">📊</span> Dashboard
+                </button>
+                <button class="nav-item" data-view="registry">
+                    <span class="icon">🛞</span> Asset Registry
+                </button>
+                <button class="nav-item" data-view="map">
+                    <span class="icon">🌍</span> Global Map
+                </button>
+                <button class="nav-item" data-view="exchange">
+                    <span class="icon">🔄</span> Exchange Flow
+                    <span class="badge">1</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer" id="data-source-indicator">
+                <span class="pulse"></span>
+                <span>Connecting to D365...</span>
+            </div>
+        </aside>
+
+        <!-- HEADER -->
+        <header class="header">
+            <h2 id="header-title">Dashboard</h2>
+            <div class="header-right">
+                <div class="header-badge">
+                    <span>⚡</span>
+                    <span>Powered by Dynamics 365 + Copilot</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="main">
+            <!-- DASHBOARD VIEW -->
+            <div class="view active" id="view-dashboard">
+                <div class="kpi-grid" id="dashboard-kpis"></div>
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🌍 Global Presence</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mini-map">
+                                <div id="dashboard-map"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>⚡ Recent Activity</h3>
+                        </div>
+                        <div class="card-body" id="activity-feed"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REGISTRY VIEW -->
+            <div class="view" id="view-registry">
+                <div class="table-controls">
+                    <div class="search-wrapper">
+                        <input type="text" class="search-input" placeholder="Search by serial, part number, airline, location..." oninput="app.handleSearch(this.value)">
+                    </div>
+                    <button class="filter-btn active" data-status="all" onclick="app.handleFilter('all')">All</button>
+                    <button class="filter-btn" data-status="in-service" onclick="app.handleFilter('in-service')">✈️ In Service</button>
+                    <button class="filter-btn" data-status="under-mro" onclick="app.handleFilter('under-mro')">🔧 MRO</button>
+                    <button class="filter-btn" data-status="in-transit" onclick="app.handleFilter('in-transit')">🚚 Transit</button>
+                    <button class="filter-btn" data-status="available" onclick="app.handleFilter('available')">📦 Available</button>
+                    <button class="filter-btn" data-status="overdue" onclick="app.handleFilter('overdue')">⚠️ Overdue</button>
+                    <span class="text-sm text-muted" id="registry-count"></span>
+                </div>
+                <div class="card">
+                    <table class="asset-table">
+                        <thead>
+                            <tr>
+                                <th>Serial No.</th>
+                                <th>Part Number</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Airline</th>
+                                <th>Location</th>
+                                <th>Remaining Life</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registry-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MAP VIEW -->
+            <div class="view" id="view-map">
+                <div class="map-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: #10B981;"></div> In Service</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: #F59E0B;"></div> Under MRO</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: #3B82F6;"></div> In Transit</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: #8B5CF6;"></div> Available Pool</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: #EF4444;"></div> Overdue</div>
+                </div>
+                <div class="map-container">
+                    <div id="asset-map"></div>
+                </div>
+            </div>
+
+            <!-- EXCHANGE VIEW -->
+            <div class="view" id="view-exchange" >
+                <div id="exchange-content"></div>
+            </div>
+
+            <!-- DETAIL VIEW -->
+            <div class="view" id="view-detail">
+                <div id="detail-content"></div>
+            </div>
+        </main>
+
+        <!-- AI PROMPT BAR -->
+        <!-- COPILOT AGENT BAR -->
+        <div class="prompt-bar" id="prompt-bar">
+            <div class="prompt-bar-label">
+                <span>🤖 Copilot Agent — Procurement & Asset Management</span>
+                <button class="agent-toggle" id="agent-toggle" onclick="app.toggleAgent()">Hide ▼</button>
+            </div>
+            <iframe
+                id="agent-iframe"
+                src="https://web.powerva.microsoft.com/environments/21ed5c53-6622-e18f-93ed-1eef12563a4e/bots/cra07_AssetManagementAgent/webchat?__version__=2"
+                allow="microphone; clipboard-write"
+                style="width: 100%; flex: 1; border: none;"
+            ></iframe>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="config.js"></script>
+    <script src="mock-data.js"></script>
+    <script src="app.js"></script>
+
+    <!-- Watermark -->
+    <div style="position: fixed; bottom: 12px; right: 12px; font-size: 10px; color: rgba(100,116,139,0.5); pointer-events: none; z-index: 999;">
+        Built with Microsoft Copilot + MCP
+    </div>
+</body>
+</html>
